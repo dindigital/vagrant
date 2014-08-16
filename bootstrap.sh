@@ -8,55 +8,64 @@ apt-get update && apt-get dist-upgrade
 
 echo "----> Instalando apache"
 apt-get install apache2 -y
+echo 'ServerName "localhost"' >> /etc/apache2/apache2.conf
 a2enmod rewrite
 
-echo "----> Instando o PHP"
+echo "----> Instalando o PHP"
 apt-get install php5 libapache2-mod-php5 php5-mcrypt php5-cli -y
-cp ./files/php.ini /etc/php5/apache2/php.ini -R
+rm -rf /etc/php5/apache2/php.ini
+ln -s /vagrant/files/php.ini /etc/php5/apache2/php.ini
 
-echo "----> Instando o PECL"
+echo "----> Default virtual host - phpinfo"
+cp /vagrant/web/info /var/www -R
+rm -rf /var/www/html
+
+echo "----> Instalando o PECL"
 apt-get install python-software-properties php5-dev -y
 
-echo "----> Instando o CURL"
+echo "----> Instalando o CURL"
 apt-get install curl php5-curl -y
 
-echo "----> Instando o XDEBUG"
+echo "----> Instalando o XDEBUG"
 pecl install xdebug
 
-echo "----> Instando GD"
+echo "----> Instalando GD"
 apt-get install php5-gd -y
 
-echo "----> Instando o MYSQL"
-sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password password mysql'
-sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password mysql'
+echo "----> Instalando o MYSQL"
+debconf-set-selections <<< 'mysql-server mysql-server/root_password password mysql'
+debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password mysql'
 apt-get -y install mysql-server php5-mysql -y
+rm -rf /etc/mysql/my.cnf
+ln -s /vagrant/files/my.cnf /etc/mysql/my.cnf
 
 echo "----> Arruma privilegios MYSQL"
-cp ./files/my.cnf /etc/mysql/my.cnf -R
-service mysql restart
+/etc/init.d/mysql restart
 mysql -uroot -pmysql -e "DELETE FROM mysql.user WHERE User='root' AND Host='127.0.0.1';
 DELETE FROM mysql.user WHERE User='root' AND Host='::1';
 UPDATE mysql.user SET Host='%' WHERE Host='localhost' AND User='root';
 FLUSH PRIVILEGES;"
 
-echo "----> Instando o Memcached"
-# apt-get install php5-memcached memcached -y
+echo "----> Instalando Mongo"
+printf "\n"|apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
+echo 'deb http://downloads-distro.mongodb.org/repo/ubuntu-upstart dist 10gen' | tee /etc/apt/sources.list.d/mongodb.list
+apt-get update
+apt-get install mongodb-org
+service mongod start
+printf "\n"|pecl install mongo
 
-echo "----> Instando o APC"
-# pecl install apc
+echo "----> Instalando o Memcached"
+apt-get install php5-memcached memcached -y
 
-echo "----> Instando composer"
+echo "----> Instalando composer"
 curl -sS https://getcomposer.org/installer | php -- --filename=composer --install-dir=/bin
 
-echo "----> Instando GIT"
+echo "----> Instalando GIT"
 apt-get install git -y
 
 echo "----> Adicionando diretorio de Vhosts" 
 rm -rf /etc/apache2/sites-enabled
 ln -fs /vagrant/files/vhosts /etc/apache2/sites-enabled
-
-echo "----> Copia PHP INFO"
-cp ./web/info /var/www -R
 
 echo "----> Reiniciando apache" 
 service apache2 restart
